@@ -1,0 +1,40 @@
+import rclpy
+from rclpy.node import Node
+from geometry_msgs.msg import Twist
+from my_robot_interfaces.srv import MoveRobot # Change to your package name
+import time
+
+class TurtlebotMoveService(Node):
+    def __init__(self):
+        super().__init__('turtlebot_move_service_node')
+        # Create the Service
+        self.srv = self.create_service(MoveRobot, 'move_turtlebot', self.move_callback)
+        # Create Publisher for movement
+        self.publisher_ = self.create_publisher(Twist, '/cmd_vel', 10)
+        self.get_logger().info("TurtleBot3 Move Service is ready.")
+
+    def move_callback(self, request, response):
+        self.get_logger().info(f"Received request to move for {request.seconds} seconds.")
+        
+        move_msg = Twist()
+        move_msg.linear.x = 1.0  # Constant speed of 1 m/s
+        
+        # Start moving
+        self.publisher_.publish(move_msg)
+        time.sleep(request.seconds)
+        
+        # Stop moving
+        move_msg.linear.x = 0.0
+        self.publisher_.publish(move_msg)
+        
+        response.success = True
+        return response
+
+def main():
+    rclpy.init()
+    node = TurtlebotMoveService()
+    rclpy.spin(node)
+    rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
