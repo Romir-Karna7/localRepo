@@ -1,0 +1,67 @@
+#!/usr/bin/env python3
+import rclpy
+import time
+from rclpy.node import Node
+from geometry_msgs.msg import Twist
+from turtlebot_task.srv import MoveRobot
+
+class MoveServer(Node):
+    def __init__(self):
+        super().__init__('move_server')
+        self.srv = self.create_service(MoveRobot, 'move_turtlebot', self.callback)
+        self.pub = self.create_publisher(Twist, 'cmd_vel', 10)
+        self.get_logger().info("Service ready. Waiting for a command...")
+
+    def callback(self, request, response):
+        self.get_logger().info(f"Moving for {request.seconds} seconds.")
+        
+        msg = Twist()
+        msg.linear.x = 1.0
+        self.pub.publish(msg)
+        
+        time.sleep(request.seconds) # Move for requested time
+        
+        msg.linear.x = 0.0
+        self.pub.publish(msg) # Stop
+        
+        response.success = True
+        return response
+
+def main():
+    rclpy.init()
+    rclpy.spin(MoveServer())
+    rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
+
+
+
+#!/usr/bin/env python3
+import rclpy
+import sys
+from rclpy.node import Node
+from turtlebot_task.srv import MoveRobot
+
+def main():
+    rclpy.init()
+    node = rclpy.create_node('move_client')
+    client = node.create_client(MoveRobot, 'move_turtlebot')
+    
+    # Wait for the server to be running
+    while not client.wait_for_service(timeout_sec=1.0):
+        node.get_logger().info('Waiting for move_server...')
+        
+    req = MoveRobot.Request()
+    # Grab the number of seconds from the terminal argument!
+    req.seconds = int(sys.argv[1]) 
+    
+    # Call the service
+    future = client.call_async(req)
+    rclpy.spin_until_future_complete(node, future)
+    
+    node.get_logger().info('Robot movement complete!')
+    rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
